@@ -77,7 +77,7 @@ class DirectorySkillLoader(SkillLoader):
 
         # Path traversal protection
         allowed_base = (skill_dir / _REFERENCES_DIR).resolve()
-        if not str(resource_path).startswith(str(allowed_base)):
+        if not resource_path.is_relative_to(allowed_base):
             raise SkillResourceNotFoundError(skill_name, resource_name)
 
         if not resource_path.is_file():
@@ -86,7 +86,9 @@ class DirectorySkillLoader(SkillLoader):
         return resource_path.read_text(encoding="utf-8")
 
     def has_skill(self, name: str) -> bool:
-        skill_dir = self._directory / name
+        skill_dir = (self._directory / name).resolve()
+        if not skill_dir.is_relative_to(self._directory):
+            return False
         return skill_dir.is_dir() and (skill_dir / _SKILL_FILE).is_file()
 
     def read_script(self, skill_name: str, script_name: str) -> Path:
@@ -95,7 +97,7 @@ class DirectorySkillLoader(SkillLoader):
 
         # Path traversal protection
         allowed_base = (skill_dir / _SCRIPTS_DIR).resolve()
-        if not str(script_path).startswith(str(allowed_base)):
+        if not script_path.is_relative_to(allowed_base):
             raise SkillResourceNotFoundError(skill_name, script_name)
 
         if not script_path.is_file():
@@ -105,7 +107,9 @@ class DirectorySkillLoader(SkillLoader):
 
     def _resolve_skill_dir(self, name: str) -> Path:
         """Resolve and validate a skill directory by name."""
-        skill_dir = self._directory / name
+        skill_dir = (self._directory / name).resolve()
+        if not skill_dir.is_relative_to(self._directory):
+            raise SkillNotFoundError(name)
         if not skill_dir.is_dir() or not (skill_dir / _SKILL_FILE).is_file():
             raise SkillNotFoundError(name)
         return skill_dir
