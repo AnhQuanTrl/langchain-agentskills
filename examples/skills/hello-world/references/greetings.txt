@@ -1,0 +1,13 @@
+# Greeting Templates
+
+## Formal
+Good day, {name}. It is a pleasure to make your acquaintance.
+Dear {name}, welcome. How may I be of assistance?
+
+## Casual
+Hey {name}! What's up?
+Hi {name}, good to see you!
+
+## Enthusiastic
+{name}!! So awesome to meet you! 🎉
+WOW {name}, welcome aboard! This is going to be great!
