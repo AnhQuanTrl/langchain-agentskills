@@ -26,10 +26,10 @@ class RunSkillScriptTool(BaseTool):
         self,
         skill_name: str,
         script_name: str,
-        args: list[str] | None = None,
+        script_args: list[str] | None = None,
     ) -> str:
         try:
             script_path = self.loader.read_script(skill_name, script_name)
-            return self.executor.run(script_path, args)
+            return self.executor.run(script_path, script_args)
         except Exception as e:
             return f"Error running script '{script_name}' from skill '{skill_name}': {e}"
