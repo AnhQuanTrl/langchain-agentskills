@@ -1,15 +1,15 @@
 [project]
 name = "langchain-agentskills"
-version = "0.1.1"
+version = "0.1.2"
 description = "agentskills.io support for LangChain and LangGraph"
 readme = "README.md"
 authors = [
     { name = "AnhQuanTrl", email = "6561860+AnhQuanTrl@users.noreply.github.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "langchain-core>=0.3.0",
-    "langchain[example,openai]>=1.2.10",
+    "langchain[openai]>=1.2.10",
     "pydantic>=2.0",
     "pyyaml>=6.0",
 ]
