@@ -9,7 +9,7 @@ from langchain_agentskills.exceptions import (
     SkillValidationError,
 )
 from langchain_agentskills.executor import ScriptExecutor
-from langchain_agentskills.middleware import SkillMiddleware
+from langchain_agentskills.middleware import PromptBuilder, SkillMiddleware
 from langchain_agentskills.loaders import (
     CompositeSkillLoader,
     DirectorySkillLoader,
@@ -33,6 +33,7 @@ __all__ = [
     "SkillContent",
     # Middleware
     "SkillMiddleware",
+    "PromptBuilder",
     # Executor
     "ScriptExecutor",
     # Loaders

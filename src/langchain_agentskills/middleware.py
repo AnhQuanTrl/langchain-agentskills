@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from collections.abc import Callable
+
+from typing import TYPE_CHECKING, cast
 
 from langchain_core.messages import AIMessage, SystemMessage
 
 from langchain_agentskills.executor import ScriptExecutor
 from langchain_agentskills.loaders.base import SkillLoader
+from langchain_agentskills.models import SkillMetadata
 from langchain_agentskills.tools.load_skill import LoadSkillTool
 from langchain_agentskills.tools.read_resource import ReadSkillResourceTool
 from langchain_agentskills.tools.run_script import RunSkillScriptTool
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable
 
     from langchain.agents.middleware.types import (
         ModelRequest,
@@ -23,6 +26,22 @@ if TYPE_CHECKING:
     from langgraph.typing import ContextT
 
 from langchain.agents.middleware.types import AgentMiddleware
+
+PromptBuilder = Callable[[list[SkillMetadata]], str]
+
+
+def _default_prompt_builder(skills: list[SkillMetadata]) -> str:
+    """Default prompt builder that generates the skills summary."""
+    if not skills:
+        return "No skills available."
+    lines = [f"- **{s.name}**: {s.description}" for s in skills]
+    return (
+        "## Available Skills\n\n"
+        + "\n".join(lines)
+        + "\n\n"
+        + "Use the `load_skill` tool when you need detailed instructions "
+        "for handling a specific type of request."
+    )
 
 
 class SkillMiddleware(AgentMiddleware):
@@ -37,18 +56,29 @@ class SkillMiddleware(AgentMiddleware):
         executor: Script executor for running skill scripts. If not provided,
             a default executor with 30s timeout is created.
         exclude_tools: Tool names to exclude (e.g. ``{"run_skill_script"}``).
+        prompt_builder: A callable that receives the list of available
+            ``SkillMetadata`` and returns a string to inject into the system
+            prompt. If not provided, a default builder is used.
 
     Example:
-        ```python
-        from langchain.agents import create_agent
-        from langchain_agentskills import SkillMiddleware, DirectorySkillLoader
+        Default usage::
 
-        loader = DirectorySkillLoader("./skills")
-        agent = create_agent(
-            "anthropic:claude-sonnet-4-20250514",
-            middleware=[SkillMiddleware(loader=loader)],
-        )
-        ```
+            loader = DirectorySkillLoader("./skills")
+            agent = create_agent(
+                "anthropic:claude-sonnet-4-20250514",
+                middleware=[SkillMiddleware(loader=loader)],
+            )
+
+        Custom prompt builder::
+
+            def my_prompt(skills: list[SkillMetadata]) -> str:
+                lines = [f"- {s.name}: {s.description}" for s in skills]
+                return (
+                    "## Skills\\n" + "\\n".join(lines)
+                    + "\\n\\nALWAYS call read_skill_resource after loading a skill."
+                )
+
+            middleware = SkillMiddleware(loader=loader, prompt_builder=my_prompt)
     """
 
     def __init__(
@@ -57,6 +87,7 @@ class SkillMiddleware(AgentMiddleware):
         *,
         executor: ScriptExecutor | None = None,
         exclude_tools: set[str] | None = None,
+        prompt_builder: PromptBuilder | None = None,
     ) -> None:
         super().__init__()
         self._loader = loader
@@ -64,12 +95,9 @@ class SkillMiddleware(AgentMiddleware):
         exclude = exclude_tools or set()
 
         # Build the skills prompt from available skills
+        builder = prompt_builder or _default_prompt_builder
         skills = loader.list_skills()
-        if skills:
-            lines = [f"- **{s.name}**: {s.description}" for s in skills]
-            self._skills_prompt = "\n".join(lines)
-        else:
-            self._skills_prompt = "No skills available."
+        self._skills_prompt = builder(skills)
 
         # Register tools
         all_tools = {
@@ -84,11 +112,7 @@ class SkillMiddleware(AgentMiddleware):
     def _build_system_message(
         self, existing: SystemMessage | None
     ) -> SystemMessage:
-        skills_addendum = (
-            f"\n\n## Available Skills\n\n{self._skills_prompt}\n\n"
-            "Use the `load_skill` tool when you need detailed instructions "
-            "for handling a specific type of request."
-        )
+        skills_addendum = f"\n\n{self._skills_prompt}"
         if existing is not None:
             new_content = [
                 *existing.content_blocks,

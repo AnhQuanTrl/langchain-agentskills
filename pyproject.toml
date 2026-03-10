@@ -1,6 +1,6 @@
 [project]
 name = "langchain-agentskills"
-version = "0.1.2"
+version = "0.2.0"
 description = "agentskills.io support for LangChain and LangGraph"
 readme = "README.md"
 authors = [
