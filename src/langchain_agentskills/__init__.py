@@ -13,6 +13,7 @@ from langchain_agentskills.middleware import PromptBuilder, SkillMiddleware
 from langchain_agentskills.loaders import (
     CompositeSkillLoader,
     DirectorySkillLoader,
+    GitHubSkillLoader,
     SkillLoader,
 )
 from langchain_agentskills.models import SkillContent, SkillMetadata
@@ -40,6 +41,7 @@ __all__ = [
     "SkillLoader",
     "DirectorySkillLoader",
     "CompositeSkillLoader",
+    "GitHubSkillLoader",
     # Tools
     "ListSkillsTool",
     "LoadSkillTool",

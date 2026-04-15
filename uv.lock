@@ -267,6 +267,7 @@ name = "langchain-agentskills"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "langchain", extra = ["openai"] },
     { name = "langchain-core" },
     { name = "pydantic" },
@@ -280,6 +281,7 @@ examples = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
     { name = "langchain", marker = "extra == 'examples'", specifier = ">=0.3.0" },
     { name = "langchain", extras = ["openai"], specifier = ">=1.2.10" },
     { name = "langchain-core", specifier = ">=0.3.0" },
