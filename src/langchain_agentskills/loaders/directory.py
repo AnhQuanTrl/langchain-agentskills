@@ -1,5 +1,7 @@
 """Load skills from a local directory."""
 
+from collections.abc import Iterable
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 from langchain_agentskills.exceptions import (
@@ -26,19 +28,33 @@ class DirectorySkillLoader(SkillLoader):
 
     Args:
         directory: Path to the root skills directory.
+        include: If set, only skills whose names match at least one of these
+            ``fnmatch`` patterns are loaded (e.g. ``["web-*", "auth"]``).
+        exclude: Skills whose names match any of these ``fnmatch`` patterns
+            are hidden. Applied after ``include``.
     """
 
-    def __init__(self, directory: str | Path) -> None:
+    def __init__(
+        self,
+        directory: str | Path,
+        *,
+        include: Iterable[str] | None = None,
+        exclude: Iterable[str] | None = None,
+    ) -> None:
         self._directory = Path(directory).resolve()
         if not self._directory.is_dir():
             raise SkillLoaderError(
                 f"Skills directory does not exist: {self._directory}"
             )
+        self._include = tuple(include) if include is not None else None
+        self._exclude = tuple(exclude) if exclude is not None else ()
 
     def list_skills(self) -> list[SkillMetadata]:
         skills: list[SkillMetadata] = []
         for entry in sorted(self._directory.iterdir()):
             if not entry.is_dir():
+                continue
+            if not self._is_allowed(entry.name):
                 continue
             skill_file = entry / _SKILL_FILE
             if not skill_file.is_file():
@@ -86,6 +102,8 @@ class DirectorySkillLoader(SkillLoader):
         return resource_path.read_text(encoding="utf-8")
 
     def has_skill(self, name: str) -> bool:
+        if not self._is_allowed(name):
+            return False
         skill_dir = (self._directory / name).resolve()
         if not skill_dir.is_relative_to(self._directory):
             return False
@@ -107,6 +125,8 @@ class DirectorySkillLoader(SkillLoader):
 
     def _resolve_skill_dir(self, name: str) -> Path:
         """Resolve and validate a skill directory by name."""
+        if not self._is_allowed(name):
+            raise SkillNotFoundError(name)
         skill_dir = (self._directory / name).resolve()
         if not skill_dir.is_relative_to(self._directory):
             raise SkillNotFoundError(name)
@@ -114,11 +134,30 @@ class DirectorySkillLoader(SkillLoader):
             raise SkillNotFoundError(name)
         return skill_dir
 
+    def _is_allowed(self, name: str) -> bool:
+        """Apply include/exclude pattern filters to a skill name."""
+        if self._include is not None and not any(
+            fnmatchcase(name, p) for p in self._include
+        ):
+            return False
+        if any(fnmatchcase(name, p) for p in self._exclude):
+            return False
+        return True
+
     @staticmethod
     def _list_dir_files(directory: Path) -> list[str]:
-        """List filenames in a directory, or return empty if it doesn't exist."""
+        """List filenames recursively, returning POSIX-style relative paths.
+
+        Walks subdirectories so skills that organize references/ or scripts/
+        into nested folders (e.g. shell/, modules/<mod>/) expose those files
+        to load_skill. Without this, agents see an empty resource list and
+        resort to guessing filenames.
+        """
         if not directory.is_dir():
             return []
         return sorted(
-            f.name for f in directory.iterdir() if f.is_file()
+            f.relative_to(directory).as_posix()
+            for f in directory.rglob("*")
+            if f.is_file()
+            and not any(part.startswith(".") for part in f.relative_to(directory).parts)
         )

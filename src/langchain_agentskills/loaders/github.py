@@ -7,6 +7,7 @@ import re
 import shutil
 import tarfile
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 import httpx
@@ -52,6 +53,10 @@ class GitHubSkillLoader(SkillLoader):
         allow_scripts: When ``False`` (default), :meth:`read_script` raises
             and ``scripts`` are stripped from ``load_skill`` results so the
             agent does not attempt to execute them.
+        include: If set, only skills whose names match at least one of these
+            ``fnmatch`` patterns are loaded.
+        exclude: Skills whose names match any of these ``fnmatch`` patterns
+            are hidden. Applied after ``include``.
     """
 
     def __init__(
@@ -63,6 +68,8 @@ class GitHubSkillLoader(SkillLoader):
         subdir: str = "",
         cache_dir: str | Path | None = None,
         allow_scripts: bool = False,
+        include: Iterable[str] | None = None,
+        exclude: Iterable[str] | None = None,
     ) -> None:
         if repo.count("/") != 1 or not all(repo.split("/")):
             raise ValueError(f"repo must be 'owner/name', got: {repo!r}")
@@ -76,6 +83,8 @@ class GitHubSkillLoader(SkillLoader):
         self._token = _resolve_token(token)
         self._subdir = subdir
         self._allow_scripts = allow_scripts
+        self._include = tuple(include) if include is not None else None
+        self._exclude = tuple(exclude) if exclude is not None else None
 
         owner, name = repo.split("/", 1)
         if cache_dir is None:
@@ -103,7 +112,11 @@ class GitHubSkillLoader(SkillLoader):
             raise SkillLoaderError(
                 f"subdir {self._subdir!r} not found in {self._repo}@{self._ref}"
             )
-        return DirectorySkillLoader(skills_root)
+        return DirectorySkillLoader(
+            skills_root,
+            include=self._include,
+            exclude=self._exclude,
+        )
 
     def _fetch_and_extract(self) -> None:
         url = f"https://api.github.com/repos/{self._repo}/tarball/{self._ref}"
